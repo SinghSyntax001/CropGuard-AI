@@ -1,10 +1,6 @@
-import os
-from dotenv import load_dotenv
 from groq import Groq
+from backend.config import GROQ_API_KEY, GROQ_CHAT_MODEL
 
-load_dotenv()
-
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY)
 
 CONFIDENCE_THRESHOLD = 0.85
@@ -32,7 +28,7 @@ def generate_response(prediction: dict, chat_history=None, language="en"):
     disease = prediction.get("predicted_disease", "")
     confidence = prediction.get("confidence", 0)
     crop_mismatch = prediction.get("crop_mismatch", False)
-    
+
     print(f"DEBUG - LLM Generation:")
     print(f"  Crop: {crop}")
     print(f"  Disease: {disease}")
@@ -82,7 +78,7 @@ Use proper spacing between each section."""
     try:
         print(f"  Sending request to LLM...")
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model=GROQ_CHAT_MODEL,
             messages=messages,
             temperature=0.3,
             max_tokens=800,
@@ -96,6 +92,6 @@ Use proper spacing between each section."""
         fallback_responses = {
             "en": "<h3>Assistant Response</h3><p><strong>Note:</strong> I'm having trouble connecting to the AI assistant right now.</p><p>Based on the diagnosis, here's what you can do:</p><p>1. Isolate affected plants<br>2. Use organic fungicides<br>3. Ensure proper spacing for air circulation<br>4. Water at the base, not on leaves</p>",
             "hi": "<h3>सहायक प्रतिक्रिया</h3><p><strong>नोट:</strong> मैं अभी AI सहायक से कनेक्ट नहीं हो पा रहा हूं।</p><p>निदान के आधार पर, आप यह कर सकते हैं:</p><p>1. प्रभावित पौधों को अलग करें<br>2. जैविक कवकनाशी का प्रयोग करें<br>3. हवा के संचार के लिए उचित दूरी सुनिश्चित करें<br>4. पत्तियों पर नहीं, बल्कि जड़ों में पानी दें</p>",
-            "ta": "<h3>உதவியாளர் பதில்</h3><p><strong>குறிப்பு:</strong> நான் இப்போது AI உதவியாளருடன் இணைக்க முடியவில்லை.</p><p>நோயறிதலின் அடிப்படையில், நீங்கள் இதைச் செய்யலாம்:</p><p>1. பாதிக்கப்பட்ட தாவரங்களை தனிமைப்படுத்தவும்<br>2. கரிம பூஞ்சைக்கொல்லிகளைப் பயன்படுத்தவும்<br>3. காற்று சுழற்சிக்கு சரியான இடைவெளி உறுதி செய்யவும்<br>4. இலைகளில் அல்ல, அடிவாரத்தில் தண்ணீர் ஊற்றவும்</p>"
+            "ta": "<h3>உதவியாளர் பதில்</h3><p><strong>குறிப்பு:</strong> நான் இப்போது AI உதவியாளருடன் இணைக்க முடியவில்லை.</p><p>நோயறிதலின் அடிப்படையில், நீங்கள் இதைச் செய்யலாம்:</p><p>1. பாதிக்கப்பட்ட தாவரங்களை தனிமைப்படுத்தவும்<br>2. கரிம பூஞ்சைக்கொல்லிகளைப் பயன்படுத்தவும்<br>3. காற்று சுழற்சிக்கு சரியான இடைவெளி உறுதி செய்யவும்<br>4. இலைகளில் அல்ல, அடிவாரத்தில் தண்ணீர் ஊற்றவும்</p>",
         }
         return fallback_responses.get(language, fallback_responses["en"])

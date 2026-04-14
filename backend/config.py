@@ -6,6 +6,14 @@ load_dotenv()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+
+def _get_required_env(key: str) -> str:
+    value = os.getenv(key)
+    if value is None or not value.strip():
+        raise RuntimeError(f"Missing required environment variable: {key}")
+    return value.strip()
+
+
 MODEL_PATH = os.path.join(BASE_DIR, "backend", "models", "mobilenetv3_best.pth")
 REALESRGAN_MODEL_PATH = os.path.join(
     BASE_DIR,
@@ -15,32 +23,28 @@ REALESRGAN_MODEL_PATH = os.path.join(
 )
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 SESSION_STORE_DIR = os.path.join(BASE_DIR, "backend", "session_store")
-DEFAULT_FIREBASE_ADMIN_CREDENTIALS_PATH = os.path.join(
-    BASE_DIR,
-    "secrets",
-    "cropguardai-71d28-firebase-adminsdk-fbsvc-8afa509ee7.json",
-)
-FIREBASE_ADMIN_CREDENTIALS_PATH = os.getenv(
-    "FIREBASE_ADMIN_CREDENTIALS_PATH",
-    DEFAULT_FIREBASE_ADMIN_CREDENTIALS_PATH,
-)
+FIREBASE_ADMIN_CREDENTIALS_PATH = _get_required_env("FIREBASE_ADMIN_CREDENTIALS_PATH")
 
 FIREBASE_WEB_CONFIG = {
-    "apiKey": os.getenv("FIREBASE_API_KEY", "AIzaSyCzDJTfg61kxfaW95XzHEPXU77pZ4rq9XA"),
-    "authDomain": os.getenv("FIREBASE_AUTH_DOMAIN", "cropguardai-71d28.firebaseapp.com"),
-    "projectId": os.getenv("FIREBASE_PROJECT_ID", "cropguardai-71d28"),
-    "storageBucket": os.getenv(
-        "FIREBASE_STORAGE_BUCKET",
-        "cropguardai-71d28.firebasestorage.app",
-    ),
-    "messagingSenderId": os.getenv("FIREBASE_MESSAGING_SENDER_ID", "688737400665"),
-    "appId": os.getenv(
-        "FIREBASE_APP_ID",
-        "1:688737400665:web:494dfa0e695d01e153be48",
-    ),
-    "measurementId": os.getenv("FIREBASE_MEASUREMENT_ID", "G-XJ5ZHS52PC"),
+    "apiKey": _get_required_env("FIREBASE_API_KEY"),
+    "authDomain": _get_required_env("FIREBASE_AUTH_DOMAIN"),
+    "projectId": _get_required_env("FIREBASE_PROJECT_ID"),
+    "storageBucket": _get_required_env("FIREBASE_STORAGE_BUCKET"),
+    "messagingSenderId": _get_required_env("FIREBASE_MESSAGING_SENDER_ID"),
+    "appId": _get_required_env("FIREBASE_APP_ID"),
+    "measurementId": _get_required_env("FIREBASE_MEASUREMENT_ID"),
 }
-FIREBASE_ENABLED_PROVIDERS = ["google", "password"]
+FIREBASE_ENABLED_PROVIDERS = [
+    provider.strip()
+    for provider in os.getenv("FIREBASE_ENABLED_PROVIDERS", "google,password").split(
+        ","
+    )
+    if provider.strip()
+]
+
+GROQ_API_KEY = _get_required_env("GROQ_API_KEY")
+GROQ_CHAT_MODEL = os.getenv("GROQ_CHAT_MODEL", "llama-3.1-8b-instant")
+GROQ_STT_MODEL = os.getenv("GROQ_STT_MODEL", "whisper-large-v3-turbo")
 
 IMG_SIZE = 224
 CONF_HIGH = 0.85

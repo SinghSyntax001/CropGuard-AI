@@ -1,19 +1,17 @@
 import json
-import os
 
-from dotenv import load_dotenv
 from groq import Groq
+from backend.config import GROQ_API_KEY, GROQ_CHAT_MODEL
 
-load_dotenv()
-
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY)
 
 # In-memory cache to avoid repeated translation calls for same payload.
 UI_TRANSLATIONS_CACHE = {}
 
 
-def translate_ui_text(text_dict: dict, target_lang: str, max_length: int = None) -> dict:
+def translate_ui_text(
+    text_dict: dict, target_lang: str, max_length: int = None
+) -> dict:
     """
     Translate a mapping of UI keys -> English text to the target language.
     """
@@ -60,7 +58,7 @@ Output ONLY the translated JSON:"""
 
     try:
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model=GROQ_CHAT_MODEL,
             messages=[
                 {
                     "role": "system",
