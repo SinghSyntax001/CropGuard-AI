@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#059669" />
+    <title>About Us | CropGuard AI</title>
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png" />
+
+    <link rel="stylesheet" href="/static/css/about.css" />
+    <link rel="stylesheet" href="/static/css/header.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+
+  <body class="about-page" data-page="about">
+    {% include 'header.html' %}
+
+    <!-- About hero and key stats -->
+    <section class="about-hero">
+      <div class="hero-content">
+        <h1 class="hero-title" data-i18n="about_title">About CropGuard AI</h1>
+        <p class="hero-subtitle" data-i18n="about_subtitle">
+          Empowering farmers worldwide with AI-driven plant disease detection
+        </p>
+
+        <div class="hero-stats">
+          <div class="stat">
+            <i class="fa-solid fa-leaf"></i>
+            <h3 data-i18n="stat_1_value">5+</h3>
+            <p data-i18n="stat_1_label">Crops</p>
+          </div>
+          <div class="stat">
+            <i class="fa-solid fa-seedling"></i>
+            <h3 data-i18n="stat_2_value">Growing</h3>
+            <p data-i18n="stat_2_label">Model Coverage</p>
+          </div>
+          <div class="stat">
+            <i class="fa-solid fa-users"></i>
+            <h3 data-i18n="stat_3_value">10+</h3>
+            <p data-i18n="stat_3_label">Languages</p>
+          </div>
+          <div class="stat">
+            <i class="fa-solid fa-bolt"></i>
+            <h3 data-i18n="stat_4_value">Instant</h3>
+            <p data-i18n="stat_4_label">AI Analysis</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Mission and feature highlights -->
+    <section class="section mission-section">
+      <div class="container mission-content">
+        <div class="mission-text">
+          <h2 data-i18n="mission_title">Our Mission</h2>
+          <p data-i18n="mission_text">
+            CropGuard AI helps farmers detect crop diseases early with computer vision and AI guidance,
+            making diagnosis and treatment faster and easier in the field.
+          </p>
+
+          <div class="mission-features">
+            <div class="feature">
+              <i class="fa-solid fa-camera"></i>
+              <h4 data-i18n="feature_1_title">Smart Diagnosis</h4>
+              <p data-i18n="feature_1_text">
+                Upload leaf images for instant AI-powered disease analysis powered by MobileNetV3.
+              </p>
+            </div>
+            <div class="feature">
+              <i class="fa-solid fa-language"></i>
+              <h4 data-i18n="feature_2_title">Indian Languages</h4>
+              <p data-i18n="feature_2_text">
+                Support for major Indian languages including Hindi, Tamil, Bengali, and more.
+              </p>
+            </div>
+            <div class="feature">
+              <i class="fa-solid fa-lightbulb"></i>
+              <h4 data-i18n="feature_3_title">Expert Guidance</h4>
+              <p data-i18n="feature_3_text">
+                Get detailed treatment plans and preventive measures using AI assistance.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mission-image">
+          <img src="/static/images/about.jpg" alt="Smart Agriculture with AI" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Project impact cards -->
+    <section class="section alt">
+      <div class="container">
+        <h2 class="section-title" data-i18n="impact_title">Impact</h2>
+        <p class="section-subtitle" data-i18n="impact_subtitle">Building a sustainable future for farmers</p>
+
+        <div class="impact-grid">
+          <div class="impact-card">
+            <h3 data-i18n="impact_1_title">55K+</h3>
+            <p data-i18n="impact_1_label">Training Images</p>
+            <small data-i18n="impact_1_text">Comprehensive dataset for accurate predictions</small>
+          </div>
+          <div class="impact-card">
+            <h3 data-i18n="impact_2_title">Real-time</h3>
+            <p data-i18n="impact_2_label">Analysis</p>
+            <small data-i18n="impact_2_text">Get results in seconds, not hours</small>
+          </div>
+          <div class="impact-card">
+            <h3 data-i18n="impact_3_title">Farmer</h3>
+            <p data-i18n="impact_3_label">Friendly</p>
+            <small data-i18n="impact_3_text">Designed specifically for agricultural users</small>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Team section -->
+    <section class="team-section">
+      <div class="container">
+        <h2 class="section-title" data-i18n="team_title">Meet Our Team</h2>
+        <p class="section-subtitle" data-i18n="team_subtitle">
+          Experts behind CropGuard AI, dedicated to transforming agriculture
+        </p>
+
+        <div class="team-grid">
+          <div class="team-card">
+            <div class="team-img">
+              <img src="/static/images/shashank.jpg" alt="Shashank Singh" />
+            </div>
+            <div class="team-info">
+              <h3>Shashank Singh</h3>
+              <p class="role" data-i18n="member_1_role">AI and ML Engineer</p>
+              <p class="bio" data-i18n="member_1_bio">
+                Deep learning specialist building accurate disease detection models using state-of-the-art neural networks.
+              </p>
+            </div>
+          </div>
+
+          <div class="team-card">
+            <div class="team-img">
+              <img src="/static/images/vishakha.jpg" alt="Vishakha Chauhan" />
+            </div>
+            <div class="team-info">
+              <h3>Vishakha Chauhan</h3>
+              <p class="role" data-i18n="member_2_role">UI and UX Designer</p>
+              <p class="bio" data-i18n="member_2_bio">
+                Creates intuitive and beautiful interfaces that make agriculture technology accessible to all farmers.
+              </p>
+            </div>
+          </div>
+
+          <div class="team-card">
+            <div class="team-img">
+              <img src="/static/images/pallav.jpg" alt="Pallav Prakash" />
+            </div>
+            <div class="team-info">
+              <h3>Pallav Prakash</h3>
+              <p class="role" data-i18n="member_3_role">Backend Developer</p>
+              <p class="bio" data-i18n="member_3_bio">
+                Builds robust and scalable FastAPI backend infrastructure with seamless AI integrations.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <p data-i18n="about_footer">Copyright @ 2026 CropGuard AI</p>
+    </footer>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/main.js"></script>
+  </body>
+</html>

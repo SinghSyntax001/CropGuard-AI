@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#059669" />
+    <title>CropGuard AI - Plant Disease Detection</title>
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png" />
+
+    <link rel="stylesheet" href="/static/css/style.css" />
+    <link rel="stylesheet" href="/static/css/header.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body data-page="home">
+    <!-- Upload modal reused by the Home CTA button -->
+    <div id="uploadModal" class="modal">
+      <div class="modal-content">
+        <h2 data-i18n="select_crop">Select Crop</h2>
+
+        <h3 class="modal-subheading" data-i18n="fruits">Fruits</h3>
+        <div class="modal-grid">
+          <div class="modal-item" data-crop="Apple" onclick="selectCrop(this)">
+            <img src="{{ url_for('static', path='images/apple.jpg') }}" />
+            <p data-i18n="apple">Apple</p>
+          </div>
+          <div class="modal-item" data-crop="Banana" onclick="selectCrop(this)">
+            <img src="{{ url_for('static', path='images/banana.jpg') }}" />
+            <p data-i18n="banana">Banana</p>
+          </div>
+          <div class="modal-item" data-crop="Mango" onclick="selectCrop(this)">
+            <img src="{{ url_for('static', path='images/mango.jpg') }}" />
+            <p data-i18n="mango">Mango</p>
+          </div>
+          <div class="modal-item" data-crop="Grape" onclick="selectCrop(this)">
+            <img src="{{ url_for('static', path='images/grapes.jpg') }}" />
+            <p data-i18n="grapes">Grapes</p>
+          </div>
+        </div>
+
+        <h3 class="modal-subheading" data-i18n="vegetables">Vegetables</h3>
+        <div class="modal-grid">
+          <div class="modal-item" data-crop="Tomato" onclick="selectCrop(this)">
+            <img src="{{ url_for('static', path='images/tomato.jpg') }}" />
+            <p data-i18n="tomato">Tomato</p>
+          </div>
+          <div class="modal-item" data-crop="Potato" onclick="selectCrop(this)">
+            <img src="{{ url_for('static', path='images/potato.jpg') }}" />
+            <p data-i18n="potato">Potato</p>
+          </div>
+          <div class="modal-item" data-crop="Cauliflower" onclick="selectCrop(this)">
+            <img src="{{ url_for('static', path='images/cauliflower.jpg') }}" />
+            <p data-i18n="cauliflower">Cauliflower</p>
+          </div>
+          <div class="modal-item" data-crop="Corn" onclick="selectCrop(this)">
+            <img src="{{ url_for('static', path='images/corn.jpg') }}" />
+            <p data-i18n="corn">Corn</p>
+          </div>
+        </div>
+
+        <form action="/upload" method="POST" enctype="multipart/form-data">
+          <input type="hidden" name="crop" id="selectedCrop" />
+          <input type="hidden" name="language" id="selectedLanguage" value="{{ selected_language }}" />
+          <input type="hidden" name="auth_token" id="authToken" value="" />
+          <input type="file" name="image" id="imageInput" accept="image/*" hidden />
+
+          <div class="modal-actions">
+            <button type="button" class="cancel-btn" onclick="closeUploadModal()" data-i18n="cancel">
+              Cancel
+            </button>
+            <button type="submit" class="upload-btn" id="uploadBtn" disabled data-i18n="upload">
+              Upload
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Main hero section -->
+    <section class="hero">
+      {% include 'header.html' %}
+
+      <div class="hero-text">
+        {% if upload_error %}
+        <div class="upload-error">{{ upload_error }}</div>
+        {% endif %}
+        <h1 data-i18n="title">Detect Crop Disease Instantly</h1>
+        <p data-i18n="subtitle">
+          Upload a leaf image and get AI-powered diagnosis and treatment.
+        </p>
+        <a class="btn" onclick="openUploadModal()" data-i18n="upload_btn">Upload Image</a>
+      </div>
+    </section>
+
+    <!-- Global footer -->
+    <footer>
+      <p data-i18n="footer">Copyright @ 2026 CropGuard AI</p>
+    </footer>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/main.js"></script>
+  </body>
+</html>

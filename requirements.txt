@@ -1,0 +1,34 @@
+# ===============================
+# Core Web App
+# ===============================
+fastapi==0.110.0
+uvicorn==0.29.0
+jinja2==3.1.3
+python-multipart==0.0.9
+
+# ===============================
+# AI / Inference
+# ===============================
+torch==2.2.2
+torchvision==0.17.2
+pillow==10.2.0
+numpy==1.26.4
+
+# ===============================
+# LLM + Translation + STT
+# ===============================
+groq==0.9.0
+python-dotenv==1.0.1
+firebase-admin==6.5.0
+slowapi==0.1.9
+
+# ===============================
+# Training Pipeline
+# ===============================
+tqdm==4.66.4
+scikit-learn==1.5.1
+
+
+opencv-python==4.10.0.84
+realesrgan==0.3.0
+basicsr==1.4.2

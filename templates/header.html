@@ -1,0 +1,149 @@
+<header class="global-header">
+  <div class="site-nav">
+    <!-- Brand always routes to Home -->
+    <a href="/" class="brand-link" aria-label="Go to home page">
+      <div class="logo-container">
+        <img src="{{ url_for('static', path='images/logo.png') }}" class="logo" alt="CropGuard AI Logo" />
+        <h2 class="logo-heading">CropGuard AI</h2>
+      </div>
+    </a>
+
+    <div class="nav-links" id="navLinks">
+      <i class="fa-solid fa-xmark" onclick="hideMenu()"></i>
+      <ul>
+        <li>
+          <a
+            href="/"
+            class="{% if active_page == 'home' %}active{% endif %}"
+            data-i18n="nav_home"
+          >HOME</a>
+        </li>
+        <li>
+          <a
+            href="/about"
+            class="{% if active_page == 'about' %}active{% endif %}"
+            data-i18n="nav_about"
+          >ABOUT</a>
+        </li>
+        <li>
+          <a
+            href="/guide"
+            class="{% if active_page == 'guide' %}active{% endif %}"
+            data-i18n="nav_guide"
+          >GUIDE</a>
+        </li>
+      </ul>
+
+      <div class="auth-actions auth-actions-mobile">
+        <button type="button" class="auth-btn auth-signin-btn" id="auth-open-mobile" data-i18n="sign_in">
+          Sign In
+        </button>
+        <div class="auth-user-chip" id="auth-user-mobile" hidden>
+          <span class="auth-user-name" id="auth-user-mobile-name">Farmer</span>
+          <button type="button" class="auth-logout-btn" id="auth-logout-mobile" data-i18n="logout">
+            Logout
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile language selector -->
+      <div class="language-selector-mobile">
+        <label for="language-select-mobile" class="sr-only">Language</label>
+        <i class="fa-solid fa-globe"></i>
+        <select id="language-select-mobile">
+          {% for lang in languages %}
+          <option value="{{ lang.code }}" {% if lang.code == selected_language %}selected{% endif %}>
+            {{ lang.name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- Desktop language selector -->
+    <div class="language-selector">
+      <i class="fa-solid fa-globe"></i>
+      <label for="language-select" class="sr-only">Language</label>
+      <select id="language-select">
+        {% for lang in languages %}
+        <option value="{{ lang.code }}" {% if lang.code == selected_language %}selected{% endif %}>
+          {{ lang.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="auth-actions auth-actions-desktop">
+      <button type="button" class="auth-btn auth-signin-btn" id="auth-open-desktop" data-i18n="sign_in">
+        Sign In
+      </button>
+      <div class="auth-user-chip" id="auth-user-desktop" hidden>
+        <span class="auth-user-name" id="auth-user-desktop-name">Farmer</span>
+        <button type="button" class="auth-logout-btn" id="auth-logout-desktop" data-i18n="logout">
+          Logout
+        </button>
+      </div>
+    </div>
+
+    <i class="fa-solid fa-bars" onclick="showMenu()"></i>
+  </div>
+</header>
+
+<div class="auth-modal" id="authModal" hidden>
+  <div class="auth-modal-backdrop" id="authModalBackdrop"></div>
+  <div class="auth-modal-panel" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+    <button type="button" class="auth-modal-close" id="authModalClose" aria-label="Close">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+
+    <div class="auth-modal-copy">
+      <p class="auth-badge" data-i18n="welcome_badge">Farmer Access</p>
+      <h3 id="authModalTitle" data-i18n="auth_modal_title">Sign in to CropGuard AI</h3>
+      <p class="auth-modal-text" id="authModalText" data-i18n="auth_modal_text">
+        Sign in to upload images, chat with the assistant, and continue your crop diagnosis.
+      </p>
+    </div>
+
+    <div class="auth-mode-tabs">
+      <button type="button" class="auth-mode-tab active" id="signinTab" data-mode="signin" data-i18n="sign_in">
+        Sign In
+      </button>
+      <button type="button" class="auth-mode-tab" id="signupTab" data-mode="signup" data-i18n="sign_up">
+        Sign Up
+      </button>
+    </div>
+
+    <button type="button" class="provider-btn provider-google" id="googleAuthBtn">
+      <i class="fa-brands fa-google"></i>
+      <span data-i18n="continue_google">Continue with Google</span>
+    </button>
+
+    <div class="auth-divider">
+      <span data-i18n="or_use_email">or use your email</span>
+    </div>
+
+    <form class="auth-form" id="authForm">
+      <div class="auth-field">
+        <label for="authEmail" data-i18n="email_address">Email Address</label>
+        <input type="email" id="authEmail" autocomplete="email" required />
+      </div>
+      <div class="auth-field">
+        <label for="authPassword" data-i18n="password_label">Password</label>
+        <input type="password" id="authPassword" autocomplete="current-password" required />
+      </div>
+      <div class="auth-field auth-field-confirm" id="confirmPasswordWrap" hidden>
+        <label for="authConfirmPassword" data-i18n="confirm_password">Confirm Password</label>
+        <input type="password" id="authConfirmPassword" autocomplete="new-password" />
+      </div>
+      <p class="auth-error" id="authError" hidden></p>
+      <button type="submit" class="auth-submit-btn" id="authSubmitBtn" data-i18n="continue_email">
+        Continue
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+  window.CROPGUARD_FIREBASE_CONFIG = {{ firebase_config | tojson }};
+  window.CROPGUARD_FIREBASE_PROVIDERS = {{ firebase_providers | tojson }};
+</script>

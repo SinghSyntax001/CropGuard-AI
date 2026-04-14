@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#059669" />
+    <title>Prediction Result | CropGuard AI</title>
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png" />
+
+    <link rel="stylesheet" href="/static/css/result.css" />
+    <link rel="stylesheet" href="/static/css/header.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+
+  <body data-page="result">
+    {% include 'header.html' %}
+
+    <!-- Result layout: prediction summary + assistant panel -->
+    <main class="container result-main">
+      <div class="prediction-card">
+        {% if upload_error %}
+        <div class="upload-error">{{ upload_error }}</div>
+        {% endif %}
+        <div class="result-actions">
+          <a href="/" class="back-btn"><i class="fa-solid fa-arrow-left"></i> <span data-i18n="back_home">Back to Home</span></a>
+        </div>
+
+        <h2><i class="fas fa-clipboard-check"></i> <span data-i18n="diagnosis_result">Diagnosis Result</span></h2>
+        <img src="{{ image_url }}" class="result-image" />
+
+        <div class="prediction-details">
+          <p>
+            <strong><i class="fas fa-seedling"></i> <span data-i18n="crop_label">Crop:</span></strong>
+            <span>{{ crop }}</span>
+          </p>
+          <p class="disease">
+            <strong><i class="fas fa-bug"></i> <span data-i18n="disease_label">Disease:</span></strong>
+            <span>{{ disease }}</span>
+          </p>
+        </div>
+
+        <div class="confidence-container">
+          <div class="confidence-text">
+            <span data-i18n="confidence_level">Confidence Level</span>
+            <span>{{ confidence }}%</span>
+          </div>
+          <div class="confidence-bar"><div class="confidence-fill" data-confidence="{{ confidence }}"></div></div>
+          <div class="confidence-value">
+            {% if confidence > 85 %}
+            <i class="fas fa-check-circle"></i> <span data-i18n="high_confidence">High Confidence</span>
+            {% elif confidence > 65 %}
+            <i class="fas fa-exclamation-circle"></i> <span data-i18n="moderate_confidence">Moderate Confidence</span>
+            {% else %}
+            <i class="fas fa-question-circle"></i> <span data-i18n="low_confidence">Low Confidence</span>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if top_k %}
+        <div class="top-k-results">
+          <h3><i class="fas fa-list-ol"></i> <span data-i18n="other_diagnoses">Other Possible Diagnoses</span></h3>
+          <div class="top-k-list">
+            {% for item in top_k %}
+            <div class="top-k-item">
+              <span class="class-name" data-original-class="{{ item.class }}">{{ item.class }}</span>
+              <span class="probability">{{ (item.prob * 100)|round(1) }}%</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="assistant-card">
+        <div class="assistant-header">
+          <h2><i class="fas fa-robot"></i> <span data-i18n="ai_assistant">AI Assistant</span></h2>
+        </div>
+
+        <div id="llmResponse" class="llm-content">{{ llm_response | safe }}</div>
+        <div id="chatHistory" class="chat-history"></div>
+
+        <div class="chat-input-area">
+          <input
+            type="text"
+            id="chatInput"
+            placeholder="Ask a follow-up question in your language..."
+            data-i18n-placeholder="chat_placeholder"
+            onkeypress="if(event.key === 'Enter') sendChatMessage()"
+          />
+          <button onclick="sendChatMessage()" title="Send Message"><i class="fa-solid fa-paper-plane"></i></button>
+          <button id="recordBtn" onclick="toggleVoiceRecording()" title="Voice Input"><i class="fa-solid fa-microphone"></i></button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Floating quick re-upload action -->
+    <form id="reuploadForm" class="reupload-form" action="/upload" method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="crop" value="{{ crop }}" />
+      <input type="hidden" name="language" id="reuploadLanguage" value="{{ selected_language }}" />
+      <input type="hidden" name="auth_token" id="reuploadAuthToken" value="" />
+      <input
+        type="file"
+        name="image"
+        id="reuploadImage"
+        accept="image/*"
+        hidden
+        onchange="if(this.files && this.files.length){window.submitProtectedForm?.(document.getElementById('reuploadForm'));}"
+      />
+      <button type="button" class="reupload-fab" onclick="document.getElementById('reuploadImage').click()">
+        <i class="fa-solid fa-upload"></i>
+        <span data-i18n="upload_btn">Upload Image</span>
+      </button>
+    </form>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/main.js"></script>
+    <script>
+      // Keep content below fixed header on all screen sizes.
+      function syncResultTopOffset() {
+        const header = document.querySelector(".global-header");
+        const resultMain = document.querySelector(".result-main");
+        if (!header || !resultMain) return;
+        const headerHeight = header.offsetHeight || 0;
+        resultMain.style.marginTop = `${headerHeight + 24}px`;
+      }
+
+      const initialLanguage = "{{ selected_language }}";
+      let activeLang = localStorage.getItem("userLanguage") || initialLanguage;
+
+      function getLang() {
+        return localStorage.getItem("userLanguage") || activeLang || "en";
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const confidenceFill = document.querySelector(".confidence-fill");
+        if (confidenceFill) {
+          const confidence = confidenceFill.getAttribute("data-confidence") || "0";
+          setTimeout(() => {
+            confidenceFill.style.width = confidence + "%";
+          }, 300);
+        }
+      });
+
+      // Generate diagnosis in selected language after page load or language change.
+      async function regenerateResponse(languageOverride = null) {
+        const language = languageOverride || getLang();
+        const llmResponse = document.getElementById("llmResponse");
+
+        llmResponse.innerHTML = `
+          <div style="text-align: center; padding: 20px;">
+            <i class="fas fa-spinner fa-spin fa-2x" style="color: #4caf50;"></i>
+            <p style="margin-top: 10px; color: #666;" data-i18n="loading_response">Loading response in selected language...</p>
+          </div>
+        `;
+
+        try {
+          const response = await fetch("/regenerate", {
+            method: "POST",
+            headers: await window.getAuthHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({ language }),
+          });
+
+          if (response.status === 401) {
+            await window.requireAuthForAction?.({ reason: "Please sign in to continue." });
+            return;
+          }
+
+          if (!response.ok) throw new Error("Network response was not ok");
+          const data = await response.json();
+          llmResponse.innerHTML = data.response;
+          await translateTopKDiagnoses(language);
+        } catch (error) {
+          console.error(error);
+          llmResponse.innerHTML = `<p style="color:#d32f2f;" data-i18n="loading_failed">Unable to load response. Please try again.</p>`;
+        }
+      }
+
+      // Translate top-k class labels shown on the result card.
+      async function translateTopKDiagnoses(language) {
+        const classNodes = Array.from(document.querySelectorAll(".top-k-item .class-name"));
+        if (!classNodes.length) return;
+
+        if (language === "en") {
+          classNodes.forEach((node) => {
+            const original = node.dataset.originalClass || node.textContent;
+            node.textContent = original.replace(/_/g, " ");
+          });
+          return;
+        }
+
+        const originals = classNodes
+          .map((node) => node.dataset.originalClass || node.textContent)
+          .filter(Boolean);
+        const normalized = originals.map((value) => value.replace(/_/g, " "));
+        const uniqueOriginals = [...new Set(normalized)];
+
+        try {
+          const response = await fetch("/translate-ui", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ language, texts: uniqueOriginals }),
+          });
+
+          if (!response.ok) return;
+          const payload = await response.json();
+          const mapping = payload.translations || {};
+
+          classNodes.forEach((node, idx) => {
+            const base = normalized[idx];
+            node.textContent = mapping[base] || base;
+          });
+        } catch (error) {
+          console.error("Failed to translate top diagnoses:", error);
+        }
+      }
+
+      // Keep re-upload form language aligned with current selection.
+      function syncReuploadLanguage(language) {
+        const reuploadLangInput = document.getElementById("reuploadLanguage");
+        if (reuploadLangInput) {
+          reuploadLangInput.value = language;
+        }
+      }
+
+      // Chat request handler for follow-up questions.
+      async function sendChatMessage() {
+        const input = document.getElementById("chatInput");
+        const message = input.value.trim();
+        if (!message) return;
+
+        const language = getLang();
+        const chatHistory = document.getElementById("chatHistory");
+
+        if (!(await window.requireAuthForAction?.({ reason: "Please sign in to chat with the assistant." }))) {
+          return;
+        }
+
+        appendMessage("user", message);
+        input.value = "";
+
+        const typingIndicator = document.createElement("div");
+        typingIndicator.className = "chat-message assistant";
+        typingIndicator.id = "typingIndicator";
+        typingIndicator.innerHTML = '<i class="fas fa-ellipsis-h"></i> AI is typing...';
+        chatHistory.appendChild(typingIndicator);
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+
+        try {
+          const response = await fetch("/chat", {
+            method: "POST",
+            headers: await window.getAuthHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({ message, language }),
+          });
+
+          if (response.status === 401) {
+            await window.requireAuthForAction?.({ reason: "Please sign in to use the assistant." });
+            document.getElementById("typingIndicator")?.remove();
+            return;
+          }
+
+          if (!response.ok) throw new Error("Network response was not ok");
+
+          const data = await response.json();
+          document.getElementById("typingIndicator")?.remove();
+          appendMessage("assistant", data.reply);
+        } catch (error) {
+          console.error(error);
+          document.getElementById("typingIndicator")?.remove();
+          appendMessage("assistant", "Sorry, I am having trouble responding. Please try again.");
+        }
+      }
+
+      // Add one chat bubble and auto-scroll to latest message.
+      function appendMessage(role, content) {
+        const chatHistory = document.getElementById("chatHistory");
+        const messageDiv = document.createElement("div");
+        messageDiv.className = `chat-message ${role}`;
+        messageDiv.innerHTML = content;
+        const plainLength = (messageDiv.textContent || "").trim().length;
+        if (role === "assistant" && plainLength > 500) {
+          messageDiv.classList.add("long");
+        }
+        chatHistory.appendChild(messageDiv);
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+      }
+
+      let isRecording = false;
+      let mediaRecorder;
+      let audioChunks = [];
+
+      async function toggleVoiceRecording() {
+        const recordBtn = document.getElementById("recordBtn");
+        const chatInput = document.getElementById("chatInput");
+
+        if (!isRecording) {
+          try {
+            if (!(await window.requireAuthForAction?.({ reason: "Please sign in to use voice input." }))) {
+              return;
+            }
+
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+              audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+              const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
+              const formData = new FormData();
+              formData.append("audio", audioBlob, "recording.wav");
+
+              chatInput.placeholder = "Processing voice input...";
+
+              const response = await fetch("/stt", {
+                method: "POST",
+                headers: await window.getAuthHeaders(),
+                body: formData,
+              });
+
+              if (response.status === 401) {
+                await window.requireAuthForAction?.({ reason: "Please sign in to use voice input." });
+                chatInput.placeholder = "Ask a follow-up question in your language...";
+                return;
+              }
+
+              const result = await response.json();
+              if (result.text) {
+                chatInput.value = result.text;
+              }
+
+              if (result.language) {
+                localStorage.setItem("userLanguage", result.language);
+                const langSelect = document.getElementById("language-select");
+                const mobileLangSelect = document.getElementById("language-select-mobile");
+                if (langSelect) langSelect.value = result.language;
+                if (mobileLangSelect) mobileLangSelect.value = result.language;
+                await regenerateResponse(result.language);
+              }
+
+              chatInput.placeholder = "Ask a follow-up question in your language...";
+            };
+
+            mediaRecorder.start();
+            isRecording = true;
+            recordBtn.innerHTML = '<i class="fa-solid fa-stop"></i>';
+            chatInput.placeholder = "Recording... Speak now";
+          } catch (error) {
+            console.error(error);
+            alert("Microphone access denied. Please allow microphone access to use voice input.");
+          }
+        } else {
+          mediaRecorder?.stop();
+          isRecording = false;
+          recordBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+          chatInput.placeholder = "Processing...";
+        }
+      }
+
+      window.addEventListener("app:language-changed", async (event) => {
+        const selected = event.detail?.language || getLang();
+        syncReuploadLanguage(selected);
+        if (selected !== activeLang) {
+          activeLang = selected;
+          await regenerateResponse(selected);
+        } else {
+          await translateTopKDiagnoses(selected);
+        }
+      });
+
+      window.addEventListener("load", async () => {
+        syncResultTopOffset();
+        const saved = getLang();
+        activeLang = saved;
+        syncReuploadLanguage(saved);
+        if (saved !== initialLanguage) {
+          await regenerateResponse(saved);
+        } else {
+          await translateTopKDiagnoses(saved);
+        }
+      });
+
+      window.addEventListener("resize", syncResultTopOffset);
+      window.addEventListener("app:language-changed", syncResultTopOffset);
+    </script>
+  </body>
+</html>
