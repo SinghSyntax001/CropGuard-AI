@@ -1,4 +1,5 @@
 import os
+import time
 
 import numpy as np
 import torch
@@ -15,6 +16,7 @@ from backend.config import (
     MODEL_PATH,
     REALESRGAN_MODEL_PATH,
 )
+from backend.logging_utils import get_logger
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
@@ -22,6 +24,7 @@ IMAGENET_STD = [0.229, 0.224, 0.225]
 device = DEVICE
 enhancer = None
 enhancer_load_attempted = False
+logger = get_logger(__name__)
 
 try:
     import cv2
@@ -40,8 +43,8 @@ checkpoint = torch.load(MODEL_PATH, map_location=device)
 CLASS_NAMES = checkpoint["class_names"]
 NUM_CLASSES = len(CLASS_NAMES)
 
-print(f"DEBUG: Loaded {NUM_CLASSES} classes")
-print(f"DEBUG: Full class list: {CLASS_NAMES}")
+logger.info("inference model loaded classes=%d", NUM_CLASSES)
+logger.debug("inference class list=%s", CLASS_NAMES)
 
 model = models.mobilenet_v3_large(weights=None)
 model.classifier[3] = torch.nn.Linear(
@@ -75,11 +78,14 @@ def get_enhancer():
     enhancer_load_attempted = True
 
     if cv2 is None or RRDBNet is None or RealESRGANer is None:
-        print("DEBUG - Real-ESRGAN dependencies are not installed, enhancement disabled.")
+        logger.info("Real-ESRGAN dependencies unavailable; enhancement disabled")
         return None
 
     if not os.path.exists(REALESRGAN_MODEL_PATH):
-        print("DEBUG - Real-ESRGAN weights not found, enhancement disabled.")
+        logger.warning(
+            "Real-ESRGAN weights missing path=%s; enhancement disabled",
+            REALESRGAN_MODEL_PATH,
+        )
         return None
 
     try:
@@ -101,9 +107,9 @@ def get_enhancer():
             pre_pad=0,
             half=device == "cuda",
         )
-        print("DEBUG - Real-ESRGAN loaded successfully.")
-    except Exception as exc:
-        print(f"DEBUG - Failed to load Real-ESRGAN: {exc}")
+        logger.info("Real-ESRGAN loaded successfully")
+    except Exception:
+        logger.exception("Failed to load Real-ESRGAN")
         enhancer = None
 
     return enhancer
@@ -149,30 +155,42 @@ def summarize_prediction(
         selected_crop_lower = selected_crop.lower()
         raw_crop = parse_crop_name(raw_class)
 
-        print(f"  Looking for crop: '{selected_crop_lower}' in classes...")
-        print(f"  Raw crop extracted: '{raw_crop}'")
+        logger.debug(
+            "summarize_prediction selected_crop=%s raw_crop=%s",
+            selected_crop_lower,
+            raw_crop,
+        )
 
         if raw_crop != selected_crop_lower and raw_crop != "unknown":
-            print(
-                f"  WARNING: Raw prediction crop '{raw_crop}' doesn't match selected '{selected_crop_lower}'"
+            logger.warning(
+                "crop mismatch candidate raw_crop=%s selected_crop=%s",
+                raw_crop,
+                selected_crop_lower,
             )
             crop_mismatch = True
 
         for prob, cls in zip(probs, CLASS_NAMES):
             crop_name = parse_crop_name(cls)
             if crop_name == selected_crop_lower:
-                print(f"    MATCH: {cls} -> {crop_name} (prob: {prob.item():.4f})")
+                logger.debug(
+                    "summarize_prediction match class=%s crop=%s prob=%.4f",
+                    cls,
+                    crop_name,
+                    prob.item(),
+                )
                 filtered.append((cls, prob.item()))
 
-    print(f"  Filtered list length: {len(filtered)}")
+    logger.debug("summarize_prediction filtered_count=%d", len(filtered))
     if filtered:
-        print(f"  Filtered items: {filtered}")
+        logger.debug("summarize_prediction filtered_items=%s", filtered)
 
     low_confidence = False
 
     if not filtered and selected_crop:
-        print(f"  ERROR: No matching classes found for selected crop '{selected_crop}'")
-        print("  This confirms crop mismatch")
+        logger.warning(
+            "No matching classes found for selected crop=%s; treating as crop mismatch",
+            selected_crop,
+        )
         predicted_class = raw_class
         confidence = raw_conf
         crop_mismatch = True
@@ -187,8 +205,11 @@ def summarize_prediction(
             (cls, prob) for cls, prob in filtered if "healthy" not in cls.lower()
         ]
 
-        print(f"  Healthy candidates: {len(healthy_candidates)}")
-        print(f"  Disease candidates: {len(disease_candidates)}")
+        logger.debug(
+            "summarize_prediction healthy_candidates=%d disease_candidates=%d",
+            len(healthy_candidates),
+            len(disease_candidates),
+        )
 
         best_healthy = (
             max(healthy_candidates, key=lambda item: item[1])
@@ -202,19 +223,29 @@ def summarize_prediction(
         )
 
         if best_healthy:
-            print(f"  Best healthy: {best_healthy[0]} ({best_healthy[1]:.4f})")
+            logger.debug(
+                "summarize_prediction best_healthy=%s confidence=%.4f",
+                best_healthy[0],
+                best_healthy[1],
+            )
         if best_disease:
-            print(f"  Best disease: {best_disease[0]} ({best_disease[1]:.4f})")
+            logger.debug(
+                "summarize_prediction best_disease=%s confidence=%.4f",
+                best_disease[0],
+                best_disease[1],
+            )
 
         if best_healthy and (not best_disease or best_disease[1] < 0.80):
             predicted_class, confidence = best_healthy
             low_confidence = False
-            print("  Selected: Healthy override")
+            logger.debug("summarize_prediction selected=healthy_override")
         else:
             predicted_class, confidence = best_disease
             low_confidence = confidence < 0.50
-            print(
-                f"  Selected: Disease (confidence: {confidence:.4f}, low_confidence: {low_confidence})"
+            logger.debug(
+                "summarize_prediction selected=disease confidence=%.4f low_confidence=%s",
+                confidence,
+                low_confidence,
             )
 
     predicted_crop, predicted_disease = split_prediction_label(predicted_class)
@@ -224,8 +255,10 @@ def summarize_prediction(
         if "healthy" in raw_class.lower() and "_" not in raw_class:
             parts = raw_class.lower().split("healthy")
             actual_crop = parts[0].strip().capitalize() if parts[0].strip() else "Unknown"
-        print(
-            f"  Crop mismatch detected! User selected '{selected_crop}' but image is '{actual_crop}'"
+        logger.warning(
+            "crop mismatch detected selected_crop=%s actual_crop=%s",
+            selected_crop,
+            actual_crop,
         )
         predicted_crop = actual_crop
 
@@ -263,7 +296,11 @@ def run_model(image: Image.Image, selected_crop: str | None, top_k: int) -> dict
     raw_conf, raw_idx = torch.max(probs, dim=0)
     raw_class = CLASS_NAMES[raw_idx.item()]
 
-    print(f"  Raw prediction: {raw_class} (confidence: {raw_conf.item():.4f})")
+    logger.debug(
+        "run_model raw_prediction class=%s confidence=%.4f",
+        raw_class,
+        raw_conf.item(),
+    )
 
     summary = summarize_prediction(
         probs=probs,
@@ -304,8 +341,8 @@ def enhance_image(image: Image.Image) -> Image.Image | None:
         enhanced_bgr, _ = upsampler.enhance(image_bgr, outscale=2)
         enhanced_rgb = cv2.cvtColor(enhanced_bgr, cv2.COLOR_BGR2RGB)
         return Image.fromarray(enhanced_rgb)
-    except Exception as exc:
-        print(f"DEBUG - Real-ESRGAN enhancement failed: {exc}")
+    except Exception:
+        logger.exception("Real-ESRGAN enhancement failed")
         return None
 
 
@@ -330,9 +367,8 @@ def should_keep_enhanced_result(original: dict, enhanced: dict) -> bool:
 def predict(image_path: str, selected_crop: str = None, top_k: int = 5) -> dict:
     image = Image.open(image_path).convert("RGB")
 
-    print("\nDEBUG - Prediction Start:")
-    print(f"  Image: {image_path}")
-    print(f"  Selected crop: {selected_crop}")
+    started_at = time.perf_counter()
+    logger.info("prediction start image=%s selected_crop=%s", image_path, selected_crop)
 
     original_result = run_model(image=image, selected_crop=selected_crop, top_k=top_k)
     original_result["enhancement_applied"] = False
@@ -340,29 +376,33 @@ def predict(image_path: str, selected_crop: str = None, top_k: int = 5) -> dict:
 
     use_enhancement, reason = should_try_enhancement(original_result)
     if not use_enhancement:
-        print("  Enhancement skipped: original prediction is confident enough.")
-        print(
-            f"  Final prediction: {original_result['predicted_crop']} - {original_result['predicted_disease']}"
+        logger.info("prediction enhancement_skipped reason=confident_enough")
+        logger.info(
+            "prediction final crop=%s disease=%s confidence=%.4f crop_mismatch=%s low_confidence=%s top3=%s elapsed_ms=%.1f",
+            original_result["predicted_crop"],
+            original_result["predicted_disease"],
+            original_result["confidence"],
+            original_result["crop_mismatch"],
+            original_result["low_confidence"],
+            original_result["top_k"][:3],
+            (time.perf_counter() - started_at) * 1000,
         )
-        print(f"  Confidence: {original_result['confidence']:.4f}")
-        print(f"  Crop mismatch flag: {original_result['crop_mismatch']}")
-        print(f"  Low confidence flag: {original_result['low_confidence']}")
-        print(f"  Top 3 predictions: {original_result['top_k'][:3]}")
-        print("DEBUG - Prediction End\n")
         return original_result
 
-    print(f"  Enhancement triggered: {reason}")
+    logger.info("prediction enhancement_triggered reason=%s", reason)
     enhanced_image = enhance_image(image)
     if enhanced_image is None:
-        print("  Enhancement unavailable or failed, using original prediction.")
-        print(
-            f"  Final prediction: {original_result['predicted_crop']} - {original_result['predicted_disease']}"
+        logger.info("prediction enhancement_unavailable using_original=true")
+        logger.info(
+            "prediction final crop=%s disease=%s confidence=%.4f crop_mismatch=%s low_confidence=%s top3=%s elapsed_ms=%.1f",
+            original_result["predicted_crop"],
+            original_result["predicted_disease"],
+            original_result["confidence"],
+            original_result["crop_mismatch"],
+            original_result["low_confidence"],
+            original_result["top_k"][:3],
+            (time.perf_counter() - started_at) * 1000,
         )
-        print(f"  Confidence: {original_result['confidence']:.4f}")
-        print(f"  Crop mismatch flag: {original_result['crop_mismatch']}")
-        print(f"  Low confidence flag: {original_result['low_confidence']}")
-        print(f"  Top 3 predictions: {original_result['top_k'][:3]}")
-        print("DEBUG - Prediction End\n")
         return original_result
 
     enhanced_result = run_model(
@@ -375,18 +415,20 @@ def predict(image_path: str, selected_crop: str = None, top_k: int = 5) -> dict:
 
     if should_keep_enhanced_result(original_result, enhanced_result):
         final_result = enhanced_result
-        print("  Enhancement improved the prediction, using enhanced result.")
+        logger.info("prediction enhancement_improved using_enhanced_result=true")
     else:
         final_result = original_result
-        print("  Enhancement did not improve enough, keeping original result.")
+        logger.info("prediction enhancement_not_better keeping_original=true")
 
-    print(
-        f"  Final prediction: {final_result['predicted_crop']} - {final_result['predicted_disease']}"
+    logger.info(
+        "prediction final crop=%s disease=%s confidence=%.4f crop_mismatch=%s low_confidence=%s top3=%s elapsed_ms=%.1f",
+        final_result["predicted_crop"],
+        final_result["predicted_disease"],
+        final_result["confidence"],
+        final_result["crop_mismatch"],
+        final_result["low_confidence"],
+        final_result["top_k"][:3],
+        (time.perf_counter() - started_at) * 1000,
     )
-    print(f"  Confidence: {final_result['confidence']:.4f}")
-    print(f"  Crop mismatch flag: {final_result['crop_mismatch']}")
-    print(f"  Low confidence flag: {final_result['low_confidence']}")
-    print(f"  Top 3 predictions: {final_result['top_k'][:3]}")
-    print("DEBUG - Prediction End\n")
 
     return final_result

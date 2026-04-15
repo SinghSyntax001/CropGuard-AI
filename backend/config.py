@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
 
 def _get_required_env(key: str) -> str:

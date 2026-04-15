@@ -147,7 +147,7 @@ async function applyLanguage(language) {
       cache[language] = { ...langCache, ...translated };
       setTranslationCache(cache);
     } catch (error) {
-      console.error("UI translation request failed:", error);
+      window.CropGuardLogger?.error("UI translation request failed:", error);
     }
   }
 
@@ -264,7 +264,7 @@ function registerServiceWorker() {
 
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch((error) => {
-      console.error("Service worker registration failed:", error);
+      window.CropGuardLogger?.error("Service worker registration failed:", error);
     });
   });
 }
@@ -368,7 +368,7 @@ function createInstallPopup() {
       try {
         await deferredInstallPrompt.userChoice;
       } catch (error) {
-        console.error("Install prompt failed:", error);
+        window.CropGuardLogger?.error("Install prompt failed:", error);
       }
       deferredInstallPrompt = null;
       closeInstallPopup();

@@ -116,6 +116,7 @@
 
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="/static/js/logger.js"></script>
     <script src="/static/js/auth.js"></script>
     <script src="/static/js/main.js"></script>
     <script>
@@ -174,7 +175,7 @@
           llmResponse.innerHTML = data.response;
           await translateTopKDiagnoses(language);
         } catch (error) {
-          console.error(error);
+          window.CropGuardLogger?.error(error);
           llmResponse.innerHTML = `<p style="color:#d32f2f;" data-i18n="loading_failed">Unable to load response. Please try again.</p>`;
         }
       }
@@ -214,7 +215,7 @@
             node.textContent = mapping[base] || base;
           });
         } catch (error) {
-          console.error("Failed to translate top diagnoses:", error);
+          window.CropGuardLogger?.error("Failed to translate top diagnoses:", error);
         }
       }
 
@@ -268,7 +269,7 @@
           document.getElementById("typingIndicator")?.remove();
           appendMessage("assistant", data.reply);
         } catch (error) {
-          console.error(error);
+          window.CropGuardLogger?.error(error);
           document.getElementById("typingIndicator")?.remove();
           appendMessage("assistant", "Sorry, I am having trouble responding. Please try again.");
         }
@@ -351,7 +352,7 @@
             recordBtn.innerHTML = '<i class="fa-solid fa-stop"></i>';
             chatInput.placeholder = "Recording... Speak now";
           } catch (error) {
-            console.error(error);
+            window.CropGuardLogger?.error(error);
             alert("Microphone access denied. Please allow microphone access to use voice input.");
           }
         } else {

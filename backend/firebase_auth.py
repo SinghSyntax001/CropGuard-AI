@@ -2,6 +2,7 @@ import os
 from typing import Any
 
 from backend.config import FIREBASE_ADMIN_CREDENTIALS_PATH
+from backend.logging_utils import get_logger
 
 try:
     import firebase_admin
@@ -13,6 +14,7 @@ except ImportError:
 
 firebase_app = None
 firebase_init_attempted = False
+logger = get_logger(__name__)
 
 
 def get_firebase_app():
@@ -27,19 +29,24 @@ def get_firebase_app():
     firebase_init_attempted = True
 
     if firebase_admin is None or auth is None or credentials is None:
-        print("DEBUG - firebase-admin is not installed, auth verification disabled.")
+        logger.info(
+            "firebase_admin unavailable; auth verification disabled"
+        )
         return None
 
     if not os.path.exists(FIREBASE_ADMIN_CREDENTIALS_PATH):
-        print("DEBUG - Firebase Admin credentials not found, auth verification disabled.")
+        logger.warning(
+            "firebase_admin credentials missing path=%s",
+            FIREBASE_ADMIN_CREDENTIALS_PATH,
+        )
         return None
 
     try:
         credential = credentials.Certificate(FIREBASE_ADMIN_CREDENTIALS_PATH)
         firebase_app = firebase_admin.initialize_app(credential)
-        print("DEBUG - Firebase Admin initialized successfully.")
-    except Exception as exc:
-        print(f"DEBUG - Firebase Admin initialization failed: {exc}")
+        logger.info("firebase_admin initialized successfully")
+    except Exception:
+        logger.exception("firebase_admin initialization failed")
         firebase_app = None
 
     return firebase_app
@@ -56,5 +63,5 @@ def verify_id_token(id_token: str | None) -> dict[str, Any] | None:
     try:
         return auth.verify_id_token(id_token, app=app)
     except Exception as exc:
-        print(f"DEBUG - Firebase token verification failed: {exc}")
+        logger.warning("firebase token verification failed: %s", exc)
         return None

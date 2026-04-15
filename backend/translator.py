@@ -1,9 +1,12 @@
 import json
+import time
 
 from groq import Groq
 from backend.config import GROQ_API_KEY, GROQ_CHAT_MODEL
+from backend.logging_utils import get_logger
 
 client = Groq(api_key=GROQ_API_KEY)
+logger = get_logger(__name__)
 
 # In-memory cache to avoid repeated translation calls for same payload.
 UI_TRANSLATIONS_CACHE = {}
@@ -17,6 +20,11 @@ def translate_ui_text(
     """
     cache_key = f"{target_lang}_{hash(frozenset(text_dict.items()))}"
     if cache_key in UI_TRANSLATIONS_CACHE:
+        logger.info(
+            "translate_ui_text cache_hit target_lang=%s keys=%d",
+            target_lang,
+            len(text_dict),
+        )
         return UI_TRANSLATIONS_CACHE[cache_key]
 
     if target_lang == "en":
@@ -57,6 +65,14 @@ Input JSON:
 Output ONLY the translated JSON:"""
 
     try:
+        started_at = time.perf_counter()
+        logger.info(
+            "translate_ui_text request model=%s target_lang=%s keys=%d max_tokens=%d",
+            GROQ_CHAT_MODEL,
+            target_lang,
+            len(text_dict),
+            1500,
+        )
         response = client.chat.completions.create(
             model=GROQ_CHAT_MODEL,
             messages=[
@@ -82,12 +98,32 @@ Output ONLY the translated JSON:"""
 
         translations = json.loads(result_text)
 
+        elapsed_ms = (time.perf_counter() - started_at) * 1000
+        usage = getattr(response, "usage", None)
+        if usage is not None:
+            logger.info(
+                "translate_ui_text response model=%s target_lang=%s elapsed_ms=%.1f prompt_tokens=%s completion_tokens=%s total_tokens=%s",
+                GROQ_CHAT_MODEL,
+                target_lang,
+                elapsed_ms,
+                getattr(usage, "prompt_tokens", None),
+                getattr(usage, "completion_tokens", None),
+                getattr(usage, "total_tokens", None),
+            )
+        else:
+            logger.info(
+                "translate_ui_text response model=%s target_lang=%s elapsed_ms=%.1f",
+                GROQ_CHAT_MODEL,
+                target_lang,
+                elapsed_ms,
+            )
+
         UI_TRANSLATIONS_CACHE[cache_key] = translations
 
         return translations
 
-    except Exception as e:
-        print(f"Translation error: {e}")
+    except Exception:
+        logger.exception("translate_ui_text error target_lang=%s", target_lang)
         return text_dict
 
 

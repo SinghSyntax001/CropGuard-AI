@@ -157,7 +157,7 @@ async function applyPageTranslations(page, lang) {
       }
     });
   } catch (error) {
-    console.error("Translation error:", error);
+    window.CropGuardLogger?.error("Translation error:", error);
   }
 }
 

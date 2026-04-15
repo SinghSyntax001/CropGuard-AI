@@ -1,7 +1,11 @@
+import time
+
 from groq import Groq
 from backend.config import GROQ_API_KEY, GROQ_CHAT_MODEL
+from backend.logging_utils import get_logger
 
 client = Groq(api_key=GROQ_API_KEY)
+logger = get_logger(__name__)
 
 CONFIDENCE_THRESHOLD = 0.85
 
@@ -29,12 +33,15 @@ def generate_response(prediction: dict, chat_history=None, language="en"):
     confidence = prediction.get("confidence", 0)
     crop_mismatch = prediction.get("crop_mismatch", False)
 
-    print(f"DEBUG - LLM Generation:")
-    print(f"  Crop: {crop}")
-    print(f"  Disease: {disease}")
-    print(f"  Confidence: {confidence}")
-    print(f"  Crop mismatch: {crop_mismatch}")
-    print(f"  Language: {language}")
+    logger.info(
+        "llm.generate_response start crop=%s disease=%s confidence=%.4f crop_mismatch=%s language=%s chat_history=%d",
+        crop,
+        disease,
+        confidence,
+        crop_mismatch,
+        language,
+        len(chat_history) if chat_history else 0,
+    )
 
     language_info = SUPPORTED_LANGUAGES.get(language, SUPPORTED_LANGUAGES["en"])
     language_name = language_info["name"]
@@ -76,7 +83,13 @@ Use proper spacing between each section."""
         messages.append({"role": "user", "content": user_prompt.strip()})
 
     try:
-        print(f"  Sending request to LLM...")
+        started_at = time.perf_counter()
+        logger.info(
+            "llm.request model=%s max_tokens=%d messages=%d",
+            GROQ_CHAT_MODEL,
+            800,
+            len(messages),
+        )
         response = client.chat.completions.create(
             model=GROQ_CHAT_MODEL,
             messages=messages,
@@ -84,10 +97,28 @@ Use proper spacing between each section."""
             max_tokens=800,
         )
         result = response.choices[0].message.content.strip()
-        print(f"  LLM response received: {result[:100]}...")
+        elapsed_ms = (time.perf_counter() - started_at) * 1000
+        usage = getattr(response, "usage", None)
+        if usage is not None:
+            logger.info(
+                "llm.response model=%s elapsed_ms=%.1f prompt_tokens=%s completion_tokens=%s total_tokens=%s response_chars=%d",
+                GROQ_CHAT_MODEL,
+                elapsed_ms,
+                getattr(usage, "prompt_tokens", None),
+                getattr(usage, "completion_tokens", None),
+                getattr(usage, "total_tokens", None),
+                len(result),
+            )
+        else:
+            logger.info(
+                "llm.response model=%s elapsed_ms=%.1f response_chars=%d",
+                GROQ_CHAT_MODEL,
+                elapsed_ms,
+                len(result),
+            )
         return result
-    except Exception as e:
-        print(f"LLM API Error: {e}")
+    except Exception:
+        logger.exception("llm.error model=%s", GROQ_CHAT_MODEL)
         # Fallback text helps keep the app usable during API outages.
         fallback_responses = {
             "en": "<h3>Assistant Response</h3><p><strong>Note:</strong> I'm having trouble connecting to the AI assistant right now.</p><p>Based on the diagnosis, here's what you can do:</p><p>1. Isolate affected plants<br>2. Use organic fungicides<br>3. Ensure proper spacing for air circulation<br>4. Water at the base, not on leaves</p>",

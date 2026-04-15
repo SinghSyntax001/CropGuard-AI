@@ -1,6 +1,7 @@
 import os
 import shutil
 import uuid
+import time
 from urllib.parse import urlparse
 
 import numpy as np
@@ -22,13 +23,46 @@ from backend.session_store import (
     load_user_session,
     save_user_session,
 )
+from backend.logging_utils import get_logger
 from backend.stt import speech_to_text
 from backend.translator import get_page_translations, translate_ui_text
 
 app = FastAPI(title="CropGuard AI")
+logger = get_logger(__name__)
 limiter = Limiter(key_func=lambda request: get_rate_limit_key(request))
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.middleware("http")
+async def request_logging_middleware(request: Request, call_next):
+    started_at = time.perf_counter()
+    logger.info("request start method=%s path=%s", request.method, request.url.path)
+    try:
+        response = await call_next(request)
+    except Exception:
+        logger.exception(
+            "request error method=%s path=%s",
+            request.method,
+            request.url.path,
+        )
+        raise
+
+    elapsed_ms = (time.perf_counter() - started_at) * 1000
+    logger.info(
+        "request end method=%s path=%s status=%s elapsed_ms=%.1f",
+        request.method,
+        request.url.path,
+        response.status_code,
+        elapsed_ms,
+    )
+    return response
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("unhandled exception path=%s", request.url.path)
+    return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
@@ -325,13 +359,15 @@ async def upload_image(
 
     prediction = predict(image_path, selected_crop=crop)
 
-    print("\nDEBUG - Upload Image:")
-    print(f"  Selected crop: {crop}")
-    print(f"  Selected language: {language}")
-    print(f"  Predicted crop: {prediction.get('predicted_crop')}")
-    print(f"  Predicted disease: {prediction.get('predicted_disease')}")
-    print(f"  Crop mismatch flag: {prediction.get('crop_mismatch')}")
-    print(f"  Confidence: {prediction.get('confidence')}")
+    logger.info(
+        "upload_image prediction crop=%s language=%s predicted_crop=%s predicted_disease=%s crop_mismatch=%s confidence=%s",
+        crop,
+        language,
+        prediction.get("predicted_crop"),
+        prediction.get("predicted_disease"),
+        prediction.get("crop_mismatch"),
+        prediction.get("confidence"),
+    )
 
     validation_error = validate_prediction(prediction)
     if validation_error:
@@ -396,6 +432,12 @@ async def regenerate(request: Request, payload: dict):
 
     session_data = load_user_session(user_uid)
     prediction = session_data.get("prediction")
+    logger.info(
+        "regenerate request user_uid=%s language=%s has_prediction=%s",
+        user_uid,
+        payload.get("language", "en"),
+        prediction is not None,
+    )
 
     if prediction is None:
         return JSONResponse({"error": "No prediction context found"}, status_code=400)
@@ -424,6 +466,13 @@ async def chat(request: Request, payload: dict):
 
     session_data = load_user_session(user_uid)
     prediction = session_data.get("prediction")
+    logger.info(
+        "chat request user_uid=%s language=%s message_chars=%d has_prediction=%s",
+        user_uid,
+        payload.get("language", "en"),
+        len(str(payload.get("message", ""))),
+        prediction is not None,
+    )
 
     if prediction is None:
         return JSONResponse(
@@ -461,6 +510,12 @@ async def speech_input(
         return json_auth_error("Please sign in to use voice input.")
 
     audio_bytes = await audio.read()
+    logger.info(
+        "stt request user_uid=%s filename=%s audio_bytes=%d",
+        user.get("uid") if user else None,
+        audio.filename,
+        len(audio_bytes),
+    )
     return speech_to_text(audio_bytes)
 
 
@@ -472,12 +527,13 @@ async def translate_page(payload: dict):
     """
     page = payload.get("page", "common")
     language = payload.get("language", "en")
+    logger.info("translate_page request page=%s language=%s", page, language)
 
     try:
         translations = get_page_translations(page, language)
         return {"translations": translations, "language": language, "page": page}
     except Exception as e:
-        print(f"Translation endpoint error: {e}")
+        logger.exception("translate_page error page=%s language=%s", page, language)
         return JSONResponse(
             {"error": "Translation failed", "message": str(e)}, status_code=500
         )
@@ -491,6 +547,11 @@ async def translate_ui(request: Request, payload: dict):
     """
     language = payload.get("language", "en")
     texts = payload.get("texts", [])
+    logger.info(
+        "translate_ui request language=%s text_count=%d",
+        language,
+        len(texts) if isinstance(texts, list) else -1,
+    )
 
     if not isinstance(texts, list):
         return JSONResponse({"error": "Invalid 'texts' payload"}, status_code=400)

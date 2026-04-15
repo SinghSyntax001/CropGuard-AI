@@ -13,7 +13,7 @@ class UITranslator {
             const cache = localStorage.getItem("translationCache");
             return cache ? JSON.parse(cache) : {};
         } catch (e) {
-            console.error("Failed to load translation cache:", e);
+            window.CropGuardLogger?.error("Failed to load translation cache:", e);
             return {};
         }
     }
@@ -23,7 +23,7 @@ class UITranslator {
         try {
             localStorage.setItem("translationCache", JSON.stringify(this.translationCache));
         } catch (e) {
-            console.error("Failed to save translation cache:", e);
+            window.CropGuardLogger?.error("Failed to save translation cache:", e);
         }
     }
 
@@ -67,7 +67,7 @@ class UITranslator {
             
             return data.translations;
         } catch (error) {
-            console.error("Translation fetch error:", error);
+            window.CropGuardLogger?.error("Translation fetch error:", error);
             this.pendingTranslations.delete(requestKey);
             return null;
         }
